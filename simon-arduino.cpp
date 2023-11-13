@@ -1,186 +1,121 @@
-int numeroAleatorioAtual = 0;
-int sequenciaAleatoria[20];
-int numeroEscolhidoAtual = 0;
-int sequenciaEscolhida[20];
-int nivelAtual = 0;
-int verificacaoAtual = 0;
-bool deveSortear = true;
+// Definições dos pinos
+const int LED_PINS[4] = {2, 3, 4, 5};  // LEDs
+const int BUTTON_PINS[4] = {8, 9, 10, 11};  // Botões
+const int BUZZER_PIN = 12;
+const int RESET_BUTTON_PIN = 6;
 
-// Função para reiniciar o jogo - redefinindo todas as variáveis e aplicando efeitos nos LEDs
-void reiniciarJogo()
-{
-  digitalWrite(PINO_LED_VERDE, HIGH);
-  digitalWrite(PINO_LED_VERMELHO, HIGH);
-  digitalWrite(PINO_LED_AMARELO, HIGH);
-  digitalWrite(PINO_LED_AZUL, HIGH);
-  delay(1000);
-  digitalWrite(PINO_LED_VERDE, LOW);
-  digitalWrite(PINO_LED_VERMELHO, LOW);
-  digitalWrite(PINO_LED_AMARELO, LOW);
-  digitalWrite(PINO_LED_AZUL, LOW);
-  delay(1000);
-  nivelAtual = 0;
-  deveSortear = true;
-  verificacaoAtual = 0;
+int numSorteados[20];  // Array para armazenar a sequência de números sorteados
+int nivel = 0;  // Nível atual do jogo
+int indiceAtual = 0;  // Índice atual na sequência que o jogador está tentando replicar
+bool sortear = true;  // Flag para controlar o sorteio de novos números
+
+// Função para reiniciar o jogo
+void reiniciar() {
+  // Todos os LEDs piscam três vezes
+  for(int j = 0; j < 3; j++) {
+    for(int i = 0; i < 4; i++) {
+      digitalWrite(LED_PINS[i], HIGH);
+    }
+    tone(BUZZER_PIN, 1000);
+    delay(250);
+    for(int i = 0; i < 4; i++) {
+      digitalWrite(LED_PINS[i], LOW);
+    }
+    noTone(BUZZER_PIN);
+    delay(250);
+  }
+  nivel = 0;
+  sortear = true;
 }
 
-// Função para lidar com a escolha incorreta - acionando efeitos nos LEDs e sons
-void escolhaIncorreta()
-{
-  for (int i = 0; i <= 3; i++)
-  {
-    noTone(PINO_BUZZER);
-    digitalWrite(PINO_LED_VERDE, HIGH);
-    digitalWrite(PINO_LED_AMARELO, HIGH);
-    tone(PINO_BUZZER, 100);
-    delay(100);
-    noTone(PINO_BUZZER);
-    tone(PINO_BUZZER, 200);
-    digitalWrite(PINO_LED_VERDE, LOW);
-    digitalWrite(PINO_LED_AMARELO, LOW);
-    delay(100);
-    noTone(PINO_BUZZER);
-    tone(PINO_BUZZER, 300);
-    digitalWrite(PINO_LED_VERMELHO, HIGH);
-    digitalWrite(PINO_LED_AZUL, HIGH);
-    delay(100);
-    noTone(PINO_BUZZER);
-    tone(PINO_BUZZER, 400);
-    digitalWrite(PINO_LED_VERMELHO, LOW);
-    digitalWrite(PINO_LED_AZUL, LOW);
-    delay(100);
-  }
-  noTone(PINO_BUZZER);
-  for (int i = 0; i <= 10; i++)
-  {
-    sequenciaAleatoria[i] = 0;
-  }
-  reiniciarJogo();
-}
+// Função para indicar escolha errada
+void escolhaErrada() {
+  for(int i = 0; i < 4; i++) {
+    digitalWrite(LED_PINS[i], HIGH);
+    tone(BUZZER_PIN, 300);
+    delay(250);
+    digitalWrite(LED_PINS[i], LOW);
+    noTone(BUZZER_PIN);
+    delay(250);
 
-// Função para mostrar a sequência atual com pausas e efeitos sonoros
-void mostrarSequenciaAtual()
-{
-  for (int i = 0; i <= nivelAtual; i++)
-  {
-    switch (sequenciaAleatoria[i])
-    {
-      case 1:
-        digitalWrite(PINO_LED_VERDE, HIGH);
-        tone(PINO_BUZZER, 100);
-        delay(500);
-        digitalWrite(PINO_LED_VERDE, LOW);
-        noTone(PINO_BUZZER);
-        delay(500);
-        break;
-      case 2:
-        digitalWrite(PINO_LED_VERMELHO, HIGH);
-        tone(PINO_BUZZER, 200);
-        delay(500);
-        digitalWrite(PINO_LED_VERMELHO, LOW);
-        noTone(PINO_BUZZER);
-        delay(500);
-        break;
-      case 3:
-        digitalWrite(PINO_LED_AMARELO, HIGH);
-        tone(PINO_BUZZER, 300);
-        delay(500);
-        digitalWrite(PINO_LED_AMARELO, LOW);
-        noTone(PINO_BUZZER);
-        delay(500);
-        break;
-      case 4:
-        digitalWrite(PINO_LED_AZUL, HIGH);
-        tone(PINO_BUZZER, 400);
-        delay(500);
-        digitalWrite(PINO_LED_AZUL, LOW);
-        noTone(PINO_BUZZER);
-        delay(500);
+    // Verifica se o botão de reset foi pressionado durante a sequência de erro
+    if(digitalRead(RESET_BUTTON_PIN) == LOW) {
+      reiniciar();
+      return;
     }
   }
+  // Limpa o array numSorteados e reseta o índiceAtual
+  for(int i = 0; i <= 20; i++) {
+    numSorteados[i] = 0;
+  }
+  indiceAtual = 0;  // Reseta o índiceAtual
+  reiniciar();
 }
 
-// Função para verificar a escolha do jogador e compará-la com a sequência sorteada
-void verificarEscolha(int pinoSaida, int som)
-{
-  if (numeroEscolhidoAtual == sequenciaAleatoria[verificacaoAtual])
-  {
-    digitalWrite(pinoSaida, HIGH);
-    tone(PINO_BUZZER, som);
+
+// Função para mostrar a sequência
+void mostrarSequencia() {
+  for(int i = 0; i <= nivel; i++) {
+    int ledIndex = numSorteados[i] - 1;
+    digitalWrite(LED_PINS[ledIndex], HIGH);
+    tone(BUZZER_PIN, 100 * (ledIndex + 1));
     delay(500);
-    digitalWrite(pinoSaida, LOW);
-    noTone(PINO_BUZZER);
+    digitalWrite(LED_PINS[ledIndex], LOW);
+    noTone(BUZZER_PIN);
     delay(500);
-    if (verificacaoAtual == nivelAtual)
-    {
-      nivelAtual++;
-      verificacaoAtual = 0;
-      deveSortear = true;
-    }
-    else
-    {
-      verificacaoAtual++;
-    }
   }
-  else
-    escolhaIncorreta();
 }
 
-void setup()
-{
-  Serial.begin(9600);
-  pinMode(BOTAO_VERDE, INPUT_PULLUP); // Botão LED VERDE
-  pinMode(BOTAO_VERMELHO, INPUT_PULLUP); // Botão LED VERMELHO
-  pinMode(BOTAO_AMARELO, INPUT_PULLUP); // Botão LED AMARELO
-  pinMode(BOTAO_AZUL, INPUT_PULLUP); // Botão LED AZUL
-  pinMode(BOTAO_RESET, INPUT_PULLUP); // Botão RESET
-  pinMode(PINO_LED_VERDE, OUTPUT);  // LED VERDE
-  pinMode(PINO_LED_VERMELHO, OUTPUT);  // LED VERMELHO
-  pinMode(PINO_LED_AMARELO, OUTPUT); // LED AMARELO
-  pinMode(PINO_LED_AZUL, OUTPUT); // LED AZUL
-  pinMode(PINO_BUZZER, OUTPUT); // Buzzer
+
+// Função para verificar a escolha do jogador
+void verificarEscolha(int botaoPressionado) {
+  if(botaoPressionado == numSorteados[indiceAtual]) {
+    indiceAtual++;
+    if(indiceAtual > nivel) {
+      nivel++;
+      indiceAtual = 0;
+      sortear = true;
+    }
+  } else {
+    escolhaErrada();
+  }
+}
+
+
+void setup() {
+  // Inicializa os pinos dos LEDs e botões
+  for(int i = 0; i < 4; i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+    pinMode(BUTTON_PINS[i], INPUT_PULLUP);
+  }
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
+
   randomSeed(analogRead(0));
-  delay(3000);
+  reiniciar();
 }
 
-void loop()
-{
-  if (nivelAtual != 21)
-  {
-    if (deveSortear)
-    {
-      numeroAleatorioAtual = random(1, 5);
-      sequenciaAleatoria[nivelAtual] = numeroAleatorioAtual;
-      mostrarSequenciaAtual();
+void loop() {
+  if(nivel != 21) {
+    if(sortear) {
+      numSorteados[nivel] = random(1, 5);  // Sorteia um número entre 1 e 4
+      mostrarSequencia();
+      sortear = false;
     }
-    deveSortear = false;
-    if (digitalRead(BOTAO_VERDE) == 0)
-    {
-      numeroEscolhidoAtual = 1;
-      verificarEscolha(PINO_LED_VERDE, 100);
+
+    for(int i = 0; i < 4; i++) {
+      if(digitalRead(BUTTON_PINS[i]) == LOW) {
+        verificarEscolha(i + 1);
+        delay(300);  // Debouncing simples
+      }
     }
-    else if (digitalRead(BOTAO_VERMELHO) == 0)
-    {
-      numeroEscolhidoAtual = 2;
-      verificarEscolha(PINO_LED_VERMELHO, 200);
+
+    // Verifica se o botão de reset foi pressionado
+    if(digitalRead(RESET_BUTTON_PIN) == LOW) {
+      reiniciar();
+      delay(300);  // Debouncing simples
     }
-    else if (digitalRead(BOTAO_AMARELO) == 0)
-    {
-      numeroEscolhidoAtual = 3;
-      verificarEscolha(PINO_LED_AMARELO, 300);
-    }
-    else if (digitalRead(BOTAO_AZUL) == 0)
-    {
-      numeroEscolhidoAtual = 4;
-      verificarEscolha(PINO_LED_AZUL, 400);
-    }
-    else if (digitalRead(BOTAO_RESET) == 0)
-    {
-      reiniciarJogo();
-    }
-  }
-  else
-  {
-    reiniciarJogo();
+  } else {
+    reiniciar();
   }
 }
